@@ -7,19 +7,107 @@
 //
 
 import UIKit
+import CoreLocation
+
+extension CurrentWeather {
+    var temperatureString: String {
+        return "\(Int(temperature))º"
+    }
+    
+    var humidityString: String {
+        let percentageValue = Int(humidity * 100)
+        return "\(percentageValue)%"
+    }
+    
+    var precipitationprobabilityString: String {
+        let percentageValue = Int(precipitationProbability * 100)
+        return "\(percentageValue)%"
+    }
+}
 
 class ViewController: UIViewController {
-
+    
+    @IBOutlet weak var tempLabel: UILabel!
+    let locationManager = CLLocationManager()
+    
+    lazy var forecastAPIClient = ForecastAPIClient(APIKey: "d00d10843e7a2ed8746b03549f78448e")
+    
+    var coordinate = Coordinate(latitude: 40.103882, longitude: -82.784575)
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+        fetchCurrentWeather()
+        findMyLocation()
     }
-
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
+    
+    func fetchCurrentWeather() {
+        
+        forecastAPIClient.fetchCurrentWeather(coordinate) { result in
+            
+            switch result {
+                
+            case .Success(let currentWeather):
+                self.display(currentWeather)
+                
+            case .Failure(let error as NSError):
+                self.showAlert("Unable to retrieve forecast", message: error.localizedDescription)
+                
+            case .Empty(let error as NSError):
+                self.showAlert("Unable to retrieve forecast", message: error.localizedDescription)
+                
+            default: break
+                
+            }
+        }
+    }
+    
+    func display(weather: CurrentWeather) {
+        tempLabel.text = weather.temperatureString
+    }
+    
+    func showAlert(title: String, message: String?, style: UIAlertControllerStyle = .Alert) {
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: style)
+        let dismissAction = UIAlertAction(title: "OK", style: .Default, handler: nil)
+        alertController.addAction(dismissAction)
+        
+        presentViewController(alertController, animated: true, completion: nil)
+    }
+    
+    func findMyLocation() {
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        locationManager.requestWhenInUseAuthorization()
+        
+        // Here we start locating
+        locationManager.startUpdatingLocation()
+        
+        
 
-
+    }
+    
 }
+
+// We adopt the CLLocationManagerDelegate
+extension ViewController: CLLocationManagerDelegate {
+    
+    func locationManager(manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        
+        for location in locations {
+            print("THIS IS THE LOCATION \(location.coordinate.latitude)")
+            coordinate = Coordinate(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+            
+            
+        }
+        
+        // This will stop updating the location.
+        locationManager.stopUpdatingLocation()
+    }
+}
+
 
